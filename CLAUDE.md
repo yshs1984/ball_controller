@@ -42,6 +42,7 @@ Unity製のボール転がしゲーム。WASDでボールを操作し、ゴー�
 - `.github/workflows/webgl-pages-deploy.yml` が `game-ci/unity-builder` でWebGLビルドを行い、`actions/deploy-pages` でGitHub Pagesにデプロイする(リポジトリのPages設定は `build_type: workflow` に切り替え済み)
 - トリガーは `Assets/**` `ProjectSettings/**` `Packages/**` の変更時のみ。Unityプロジェクト本体がまだ存在しない現状では起動しない
 - **Unity Licenseの認証情報(`UNITY_LICENSE` などのGitHub Secrets)が未設定。** これを `Settings > Secrets and variables > Actions` に登録しない限り、Unityプロジェクトを追加してもbuildジョブはライセンス認証エラーで失敗する
+- **Unity Personal(無償版)を使う場合、`UNITY_LICENSE` の取得に手動の初回手続きが必要。** `.github/workflows/unity-request-activation-file.yml` を手動実行(workflow_dispatch)して `.alf` ファイルを取得 → [license.unity3d.com/manual](https://license.unity3d.com/manual) にアップロードして「Unity Personal」を選択 → 発行された `.ulf` の中身をGitHub Secretsに `UNITY_LICENSE` として登録する。登録が終わればこの一時ワークフローは不要になる
 
 ### Git管理上の注意
 
