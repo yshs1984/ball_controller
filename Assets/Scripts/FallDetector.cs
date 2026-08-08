@@ -4,7 +4,7 @@ using UnityEngine;
 public class FallDetector : MonoBehaviour
 {
     [SerializeField] private GameManager gameManager;
-    [SerializeField] private float fallThreshold = -5f;
+    [SerializeField] private float fallThreshold = -15f;
 
     private void Update()
     {

@@ -683,7 +683,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier:
   gameManager: {fileID: 555500003}
-  fallThreshold: -5
+  fallThreshold: -15
 --- !u!1 &333300001
 GameObject:
   m_ObjectHideFlags: 0
