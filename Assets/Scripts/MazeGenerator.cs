@@ -24,14 +24,39 @@ public class MazeGenerator : MonoBehaviour
         public bool west;
     }
 
+    private const int MaxSize = 12;
+
     private Cell[,] cells;
 
     private void Start()
     {
+        Generate();
+    }
+
+    // ステージ開始・進行の両方から呼ばれる生成処理
+    public void Generate()
+    {
+        ClearWalls();
         GenerateMaze();
         BuildWalls();
         PlaceFloor();
         PlaceBallAndGoal();
+    }
+
+    // ステージが進むごとに迷路を一回り大きくして再生成する(上限MaxSizeで頭打ち)
+    public void GenerateNewStage(int stage)
+    {
+        width = Mathf.Min(MaxSize, width + 1);
+        height = Mathf.Min(MaxSize, height + 1);
+        Generate();
+    }
+
+    private void ClearWalls()
+    {
+        for (int i = transform.childCount - 1; i >= 0; i--)
+        {
+            Destroy(transform.GetChild(i).gameObject);
+        }
     }
 
     private void GenerateMaze()
