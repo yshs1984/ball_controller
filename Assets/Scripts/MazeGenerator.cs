@@ -51,6 +51,12 @@ public class MazeGenerator : MonoBehaviour
         Generate();
     }
 
+    // 落下時のリトライで呼ばれる。迷路は再生成せず、ボールの位置だけ戻す
+    public void ResetBall()
+    {
+        PlaceBallAndGoal();
+    }
+
     private void ClearWalls()
     {
         for (int i = transform.childCount - 1; i >= 0; i--)
@@ -155,19 +161,20 @@ public class MazeGenerator : MonoBehaviour
                     0f,
                     originZ + z * cellSize + cellSize / 2f);
 
-                if (cells[x, z].north)
+                // 迷路外周に面する壁は作らない(ボールが端まで転がると落下できるようにする)
+                if (cells[x, z].north && z < height - 1)
                 {
                     CreateWall(center + new Vector3(0f, 0f, cellSize / 2f), cellSize, wallThickness);
                 }
-                if (cells[x, z].south)
+                if (cells[x, z].south && z > 0)
                 {
                     CreateWall(center + new Vector3(0f, 0f, -cellSize / 2f), cellSize, wallThickness);
                 }
-                if (cells[x, z].east)
+                if (cells[x, z].east && x < width - 1)
                 {
                     CreateWall(center + new Vector3(cellSize / 2f, 0f, 0f), wallThickness, cellSize);
                 }
-                if (cells[x, z].west)
+                if (cells[x, z].west && x > 0)
                 {
                     CreateWall(center + new Vector3(-cellSize / 2f, 0f, 0f), wallThickness, cellSize);
                 }

@@ -34,4 +34,15 @@ public class GameManager : MonoBehaviour
 
         StartStage();
     }
+
+    // FallDetectorから呼ばれる。迷路は再生成せず、同じ迷路でボールの位置だけ戻す
+    public void OnBallFell()
+    {
+        Debug.Log($"Fall! Retry Stage {currentStage}");
+
+        if (mazeGenerator != null)
+        {
+            mazeGenerator.ResetBall();
+        }
+    }
 }
