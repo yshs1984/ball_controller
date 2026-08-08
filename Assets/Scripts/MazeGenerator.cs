@@ -27,9 +27,17 @@ public class MazeGenerator : MonoBehaviour
     private const int MaxSize = 12;
 
     private Cell[,] cells;
+    private float ballStartHeight;
 
     private void Start()
     {
+        // 落下でball.position.yがマイナスになった後でも正しい高さに戻せるよう、
+        // シーン上で設定された本来の高さをここで一度だけ記録しておく
+        if (ball != null)
+        {
+            ballStartHeight = ball.position.y;
+        }
+
         Generate();
     }
 
@@ -218,7 +226,7 @@ public class MazeGenerator : MonoBehaviour
         {
             Vector3 startPosition = new Vector3(
                 originX + cellSize / 2f,
-                ball.position.y,
+                ballStartHeight,
                 originZ + cellSize / 2f);
             ball.position = startPosition;
 
