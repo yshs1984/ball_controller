@@ -1,0 +1,75 @@
+# UnityプロジェクトをWebGLビルドし、GitHub Pagesへデプロイするワークフロー。
+#
+# 事前準備(リポジトリの Settings > Secrets and variables > Actions で設定):
+#   UNITY_LICENSE  Unity Personal/Plusのライセンスファイル(.ulf)の中身
+#                  (UNITY_EMAIL / UNITY_PASSWORD / UNITY_SERIAL でのライセンス認証でも可。
+#                   詳細は game-ci/unity-builder のドキュメントを参照)
+# これらが未設定の場合、build ジョブはライセンス認証エラーで失敗する。
+#
+# Assets/ や ProjectSettings/ がまだ存在しない段階(このリポジトリの現状)では
+# 対象パスの変更が起きないため、このワークフローは起動しない。
+
+name: WebGL build & deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Assets/**"
+      - "ProjectSettings/**"
+      - "Packages/**"
+      - ".github/workflows/webgl-pages-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Libraryフォルダをキャッシュ(ビルド時間短縮)
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-WebGL-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-WebGL-
+            Library-
+
+      - name: UnityでWebGLビルド
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: WebGL
+          buildName: WebGL
+
+      - name: ビルド成果物をPages用アーティファクトとしてアップロード
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/WebGL/WebGL
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: GitHub Pagesへデプロイ
+        id: deployment
+        uses: actions/deploy-pages@v4

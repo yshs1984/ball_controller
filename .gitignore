@@ -1,0 +1,33 @@
+# Unity標準の除外設定
+# .meta ファイルはGUID解決に必須のため、ここでは除外しない(常にコミットする)
+
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+[Mm]emoryCaptures/
+
+# Visual Studio / Rider / VSCode がUnityプロジェクトごとに生成するファイル
+.vs/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# OSやツールが生成する診断情報
+sysinfo.txt
+crashlytics-build.properties
