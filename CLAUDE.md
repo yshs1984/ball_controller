@@ -41,8 +41,12 @@ Unity製のボール転がしゲーム。WASDでボールを操作し、ゴー�
 - **圧縮形式は必ず `Disabled`、または `Gzip` + Decompression Fallback 有効にする。** GitHub Pagesは静的ホスティングで `Content-Encoding` ヘッダーを設定できないため、Unityの既定であるBrotli圧縮のままビルドするとブラウザ側でロードに失敗する。WebGLビルドがPages上で真っ黒なまま止まる場合、まずここを疑う
 - `.github/workflows/webgl-pages-deploy.yml` が `game-ci/unity-builder` でWebGLビルドを行い、`actions/deploy-pages` でGitHub Pagesにデプロイする(リポジトリのPages設定は `build_type: workflow` に切り替え済み)
 - トリガーは `Assets/**` `ProjectSettings/**` `Packages/**` の変更時のみ。Unityプロジェクト本体がまだ存在しない現状では起動しない
-- **Unity Licenseの認証情報(`UNITY_LICENSE` などのGitHub Secrets)が未設定。** これを `Settings > Secrets and variables > Actions` に登録しない限り、Unityプロジェクトを追加してもbuildジョブはライセンス認証エラーで失敗する
-- **Unity Personal(無償版)を使う場合、`UNITY_LICENSE` の取得に手動の初回手続きが必要。** `.github/workflows/unity-request-activation-file.yml` を手動実行(workflow_dispatch)して `.alf` ファイルを取得 → [license.unity3d.com/manual](https://license.unity3d.com/manual) にアップロードして「Unity Personal」を選択 → 発行された `.ulf` の中身をGitHub Secretsに `UNITY_LICENSE` として登録する。登録が終わればこの一時ワークフローは不要になる
+- Unity Licenseの認証情報(`UNITY_LICENSE` / `UNITY_EMAIL` / `UNITY_PASSWORD` のGitHub Secrets)は登録済み
+- **Unity Personal(無償版)のライセンス取得手順**: CI上で要求ファイルを生成する方式(`game-ci/unity-request-activation-file`)は廃止されている。代わりに、ローカルのUnity Hubで発行された `.ulf` ファイルをそのまま使う
+  1. Unity Hub > Preferences > Licenses > 「Get a free personal license」でPersonalライセンスを取得
+  2. OSごとの保存場所からファイルを取得: Windows `C:\ProgramData\Unity\Unity_lic.ulf` / Mac `/Library/Application Support/Unity/Unity_lic.ulf` / Linux `~/.local/share/unity3d/Unity/Unity_lic.ulf`
+  3. その中身を `UNITY_LICENSE` に、Unityアカウントのメールアドレス・パスワードを `UNITY_EMAIL` / `UNITY_PASSWORD` に登録する(Personal版は `.ulf` だけでなくアカウント認証情報も併用する)
+  4. Google等のSSOでアカウントを作りパスワードが無い場合は、[id.unity.com](https://id.unity.com) のログイン画面で「パスワードをお忘れですか?」からパスワードを設定する(SSOログインはそのまま使い続けられる)
 
 ### Git管理上の注意
 
