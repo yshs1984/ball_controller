@@ -1,10 +1,10 @@
 # UnityプロジェクトをWebGLビルドし、GitHub Pagesへデプロイするワークフロー。
 #
-# 事前準備(リポジトリの Settings > Secrets and variables > Actions で設定):
-#   UNITY_LICENSE  Unity Personal/Plusのライセンスファイル(.ulf)の中身
-#                  (UNITY_EMAIL / UNITY_PASSWORD / UNITY_SERIAL でのライセンス認証でも可。
-#                   詳細は game-ci/unity-builder のドキュメントを参照)
-# これらが未設定の場合、build ジョブはライセンス認証エラーで失敗する。
+# 事前準備(リポジトリの Settings > Secrets and variables > Actions で設定済み):
+#   UNITY_LICENSE   Unity Hubで発行された Unity_lic.ulf ファイルの中身
+#   UNITY_EMAIL     Unityアカウントのメールアドレス
+#   UNITY_PASSWORD  Unityアカウントのパスワード
+# Personal版は .ulf 単体では認証できず、アカウント情報の併用が必要(詳細はCLAUDE.md参照)。
 #
 # Assets/ や ProjectSettings/ がまだ存在しない段階(このリポジトリの現状)では
 # 対象パスの変更が起きないため、このワークフローは起動しない。
