@@ -31,3 +31,7 @@
 # OSやツールが生成する診断情報
 sysinfo.txt
 crashlytics-build.properties
+
+# 追加
+.vscode/
+*.slnx
