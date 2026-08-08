@@ -41,6 +41,7 @@ Unity製のボール転がしゲーム。WASDでボールを操作し、ゴー�
 - **圧縮形式は必ず `Disabled`、または `Gzip` + Decompression Fallback 有効にする。** GitHub Pagesは静的ホスティングで `Content-Encoding` ヘッダーを設定できないため、Unityの既定であるBrotli圧縮のままビルドするとブラウザ側でロードに失敗する。WebGLビルドがPages上で真っ黒なまま止まる場合、まずここを疑う
 - GitHub Actionsで `game-ci/unity-builder` を用いてWebGLビルドを実行し、`gh-pages` ブランチ(または `actions/deploy-pages`)にデプロイする方針とする
 - Unity Licenseの認証情報(`UNITY_LICENSE` などのGitHub Secrets)が別途必要になる。実際のワークフローファイル(`.github/workflows/`)の実装は本CLAUDE.md作成時点では未着手で、別タスクとして行う
+- **Unity Personal(無償版)を使う場合、`UNITY_LICENSE` の取得に手動の初回手続きが必要。** `.github/workflows/unity-request-activation-file.yml` を手動実行(workflow_dispatch)して `.alf` ファイルを取得 → [license.unity3d.com/manual](https://license.unity3d.com/manual) にアップロードして「Unity Personal」を選択 → 発行された `.ulf` の中身をGitHub Secretsに `UNITY_LICENSE` として登録する。登録が終わればこの一時ワークフローは不要になる
 
 ### Git管理上の注意
 

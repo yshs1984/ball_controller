@@ -1,0 +1,36 @@
+# Unity Personal(無償版)ライセンスをCIで使うための、初回のみ必要な一時ワークフロー。
+#
+# 使い方:
+#   1. GitHubの Actions タブからこのワークフローを手動実行(workflow_dispatch)する
+#   2. 実行完了後、Artifacts に "Activation_UnityLicensingClient_v1.alf" が
+#      生成されるのでダウンロードする
+#   3. https://license.unity3d.com/manual にUnityアカウントでログインし、
+#      その .alf ファイルをアップロードして「Unity Personal」を選択する
+#   4. 発行された .ulf ファイルの中身を、リポジトリの
+#      Settings > Secrets and variables > Actions で
+#      シークレット名 "UNITY_LICENSE" として登録する
+#
+# シークレット登録が完了したら、このワークフロー自体はもう使わない
+# (削除してもよいし、残しても実害はない)。
+
+name: Unity Personalライセンス アクティベーション要求ファイルの生成
+
+on:
+  workflow_dispatch:
+
+jobs:
+  request-activation-file:
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: アクティベーション要求ファイル(.alf)を生成
+        id: activation
+        uses: game-ci/unity-request-activation-file@v2
+
+      - name: 要求ファイルをArtifactとしてアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: activation-file
+          path: ${{ steps.activation.outputs.filePath }}
