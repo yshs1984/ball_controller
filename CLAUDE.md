@@ -10,7 +10,7 @@ Unity製のボール転がしゲーム。WASDでボールを操作し、ゴー�
 
 - 標準的なUnityプロジェクト構成(`Assets/`, `Assets/Scenes/`, `Assets/Scripts/`, `ProjectSettings/` 等)を使う
 - スクリプトは `Assets/Scripts/` 配下にフラットに置く。現状は数本程度のスクリプトしかないため、`Player/` `UI/` のようなサブフォルダでの過剰な分割はしない
-- `BallController.cs`: プレイヤーが操作するボールにアタッチする。`Rigidbody` の `AddForce` で加速度ベースの移動を行う。WASD(および矢印キー)の入力をX-Z平面上の力に変換する
+- `BallController.cs`: プレイヤーが操作するボールにアタッチする。`Rigidbody` の `AddForce` で加速度ベースの移動を行う。WASD(および矢印キー)の入力をX-Z平面上の力に変換する。加えて、画面のタップ&ドラッグ(`Input.GetMouseButton`系。WebGLではタッチがマウスイベントとしてエミュレートされるため同じコードでPC/スマホ両対応)にも対応し、キーボード入力と合算する。端末の傾き(ジャイロ)操作は未対応(WebGLでの実装コストが高いため見送り)
 - `GoalTrigger.cs`: ゴールオブジェクトの `Collider`(`Is Trigger` = true)にアタッチする。`OnTriggerEnter` でボールとの接触を検知し `Debug.Log("Clear!")` を出力する
 - カメラ追従スクリプト(`CameraFollow.cs` 等): メインカメラにアタッチし、`LateUpdate` でボールのTransformを追従する。オフセットと簡易的なスムージングのみを行う
 
