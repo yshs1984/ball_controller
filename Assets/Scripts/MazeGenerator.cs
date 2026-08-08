@@ -160,31 +160,39 @@ public class MazeGenerator : MonoBehaviour
         float originX = -width * cellSize / 2f;
         float originZ = -height * cellSize / 2f;
 
-        for (int x = 0; x < width; x++)
+        // 内部の壁だけを、区切り線ごとに1枚ずつ生成する(隣接する2セルの両側から
+        // 重複して生成しないよう、列/行の境界を基準にループする)。
+        // 迷路外周(x=0, x=width, z=0, z=height)の境界線はループ範囲に含めないため、
+        // 外周には壁が作られない(ボールが端まで転がると落下できるようにするため)。
+
+        // 縦方向の壁(列と列の間。東西を区切る)
+        for (int x = 1; x < width; x++)
         {
             for (int z = 0; z < height; z++)
             {
-                Vector3 center = new Vector3(
-                    originX + x * cellSize + cellSize / 2f,
-                    0f,
-                    originZ + z * cellSize + cellSize / 2f);
+                if (cells[x - 1, z].east)
+                {
+                    Vector3 position = new Vector3(
+                        originX + x * cellSize,
+                        0f,
+                        originZ + z * cellSize + cellSize / 2f);
+                    CreateWall(position, wallThickness, cellSize);
+                }
+            }
+        }
 
-                // 迷路外周に面する壁は作らない(ボールが端まで転がると落下できるようにする)
-                if (cells[x, z].north && z < height - 1)
+        // 横方向の壁(行と行の間。南北を区切る)
+        for (int z = 1; z < height; z++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (cells[x, z - 1].north)
                 {
-                    CreateWall(center + new Vector3(0f, 0f, cellSize / 2f), cellSize, wallThickness);
-                }
-                if (cells[x, z].south && z > 0)
-                {
-                    CreateWall(center + new Vector3(0f, 0f, -cellSize / 2f), cellSize, wallThickness);
-                }
-                if (cells[x, z].east && x < width - 1)
-                {
-                    CreateWall(center + new Vector3(cellSize / 2f, 0f, 0f), wallThickness, cellSize);
-                }
-                if (cells[x, z].west && x > 0)
-                {
-                    CreateWall(center + new Vector3(-cellSize / 2f, 0f, 0f), wallThickness, cellSize);
+                    Vector3 position = new Vector3(
+                        originX + x * cellSize + cellSize / 2f,
+                        0f,
+                        originZ + z * cellSize);
+                    CreateWall(position, cellSize, wallThickness);
                 }
             }
         }
