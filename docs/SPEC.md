@@ -39,7 +39,7 @@
 シーン内の空のGameObjectにアタッチする。穴掘り法(recursive backtracker)で迷路を生成する。
 
 - `public void Generate()`: 迷路生成の一連処理(`ClearWalls()` → `GenerateMaze()` → `BuildWalls()` → `PlaceFloor()` → `PlaceBallAndGoal()`)。`Start()`から初回呼び出しされる
-- `public void GenerateNewStage(int stage)`: `width`/`height`を+1(上限12で頭打ち)してから`Generate()`を呼ぶ。ステージクリアのたびに迷路が一回り大きくなる
+- `public void GenerateNewStage(int stage)`: `width`/`height`を+1(上限12で頭打ち)してから`Generate()`を呼ぶ。ステージクリアのたびに迷路が一回り大きくなる。さらに、`stage`が`NarrowStageInterval`(既定3)の倍数のときは「細道チャレンジ」として`cellSize`を`narrowCellSize`(既定2)に細くし、Consoleに`Stage X: 細道チャレンジ!`を出力する。倍数でないステージは`normalCellSize`(`Start()`で記録した本来の`cellSize`)に戻す
 - `public void ResetBall()`: 迷路は再生成せず`PlaceBallAndGoal()`だけ呼ぶ(落下リトライ用)
 - 壁は`Assets/Materials/WallMaterial.mat`を使う。`BuildWalls()`は列/行の境界線を基準にループし(セル単位だと内部の壁が隣接する2セルの両側から重複してしまうため)、壁ごとに個別のGameObjectは作らず`CombineInstance`でまとめて**1つのメッシュに結合**する。結合結果は`Walls`という1つのGameObjectにまとめ、`MeshFilter`/`MeshRenderer`(描画)と`MeshCollider`(当たり判定、壁は動かないので非convexのまま)を1組だけ持たせる。壁の数が増えてもドローコール・GameObject数が増えないようにするための最適化(Issue #13)
 - **迷路外周に面する壁は生成しない**(ボールが端まで転がると床の外に落下できる仕様)

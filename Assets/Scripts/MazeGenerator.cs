@@ -8,12 +8,16 @@ public class MazeGenerator : MonoBehaviour
     [SerializeField] private int width = 6;
     [SerializeField] private int height = 6;
     [SerializeField] private float cellSize = 4f;
+    [SerializeField] private float narrowCellSize = 2f;
     [SerializeField] private float wallHeight = 2f;
     [SerializeField] private float wallThickness = 0.3f;
     [SerializeField] private Material wallMaterial;
     [SerializeField] private Transform floor;
     [SerializeField] private Transform ball;
     [SerializeField] private Transform goal;
+
+    // 何ステージに1回、通路が細い「細道チャレンジ」にするか
+    private const int NarrowStageInterval = 3;
 
     private struct Cell
     {
@@ -28,6 +32,7 @@ public class MazeGenerator : MonoBehaviour
 
     private Cell[,] cells;
     private float ballStartHeight;
+    private float normalCellSize;
     private Mesh cubeMesh;
 
     private void Start()
@@ -38,6 +43,9 @@ public class MazeGenerator : MonoBehaviour
         {
             ballStartHeight = ball.position.y;
         }
+
+        // 細道チャレンジ後に通常の通路幅へ戻せるよう、本来のcellSizeを記録しておく
+        normalCellSize = cellSize;
 
         Generate();
     }
@@ -52,11 +60,21 @@ public class MazeGenerator : MonoBehaviour
         PlaceBallAndGoal();
     }
 
-    // ステージが進むごとに迷路を一回り大きくして再生成する(上限MaxSizeで頭打ち)
+    // ステージが進むごとに迷路を一回り大きくして再生成する(上限MaxSizeで頭打ち)。
+    // NarrowStageIntervalの倍数のステージは、通路が細い「細道チャレンジ」にする
     public void GenerateNewStage(int stage)
     {
         width = Mathf.Min(MaxSize, width + 1);
         height = Mathf.Min(MaxSize, height + 1);
+
+        bool isNarrowStage = stage % NarrowStageInterval == 0;
+        cellSize = isNarrowStage ? narrowCellSize : normalCellSize;
+
+        if (isNarrowStage)
+        {
+            Debug.Log($"Stage {stage}: 細道チャレンジ!");
+        }
+
         Generate();
     }
 
