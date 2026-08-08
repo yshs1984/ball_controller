@@ -15,7 +15,7 @@ Unity製のボール転がしゲーム。WASDでボールを操作し、ゴー�
 - カメラ追従スクリプト(`CameraFollow.cs` 等): メインカメラにアタッチし、`LateUpdate` でボールのTransformを追従する。オフセットと簡易的なスムージングのみを行う
 - `MazeGenerator.cs`: シーン内の空のGameObjectにアタッチする。`public void Generate()` が穴掘り法(recursive backtracker)により迷路を生成し、`Assets/Materials/WallMaterial.mat` を使った壁(Cube)を`CreatePrimitive`で動的生成する。**迷路外周に面する壁は生成しない**(ボールが端まで転がると床の外に落下できる)。あわせて `floor` / `ball` / `goal` の各`Transform`(Inspectorでアサイン)を迷路のサイズ・スタート地点・ゴール地点に合わせて再配置する。`Start()`で初回の`Generate()`を呼ぶ。`public void GenerateNewStage(int stage)` は `width`/`height` を+1(上限12)してから`Generate()`を呼び、再生成前に前ステージの壁(`transform`の子オブジェクト)を`ClearWalls()`で破棄する。`public void ResetBall()` は迷路を再生成せず`ball`/`goal`の位置だけ戻す(落下リトライ用)。迷路の大きさ(`width` / `height` / `cellSize` 等)は`[SerializeField]`でInspector調整可能。**Editor上の非再生時のシーンビューでは迷路は見えない**(実行時生成のため)。Play時に毎回ランダムな迷路になる
 - `GameManager.cs`: シーン内の空のGameObjectにアタッチする。`mazeGenerator`への参照(Inspectorでアサイン)を持ち、ステージ数とステージ開始時刻(`Time.time`)を管理する。`public void OnGoalReached()`(`GoalTrigger`から呼ばれる)でクリアタイムを`Debug.Log`に出力し、ステージを進め、`mazeGenerator.GenerateNewStage()`を呼ぶ。`public void OnBallFell()`(`FallDetector`から呼ばれる)は落下ログを出し、`mazeGenerator.ResetBall()`で同じ迷路のままボールを戻す(ステージは進めない)。画面上のUI表示は無く、Consoleログのみ
-- `FallDetector.cs`: ボールにアタッチする。`Update()`でボールのY座標を監視し、`fallThreshold`(既定-5)を下回ったら`gameManager`(Inspectorでアサイン)の`OnBallFell()`を呼ぶ
+- `FallDetector.cs`: ボールにアタッチする。`Update()`でボールのY座標を監視し、`fallThreshold`(既定-15。落下の間を持たせるため意図的に深め)を下回ったら`gameManager`(Inspectorでアサイン)の`OnBallFell()`を呼ぶ
 
 ### Unity固有の実装ルール
 
