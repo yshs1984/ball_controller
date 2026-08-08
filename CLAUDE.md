@@ -13,6 +13,7 @@ Unity製のボール転がしゲーム。WASDでボールを操作し、ゴー�
 - `BallController.cs`: プレイヤーが操作するボールにアタッチする。`Rigidbody` の `AddForce` で加速度ベースの移動を行う。WASD(および矢印キー)の入力をX-Z平面上の力に変換する。加えて、画面のタップ&ドラッグ(`Input.GetMouseButton`系。WebGLではタッチがマウスイベントとしてエミュレートされるため同じコードでPC/スマホ両対応)にも対応し、キーボード入力と合算する。端末の傾き(ジャイロ)操作は未対応(WebGLでの実装コストが高いため見送り)
 - `GoalTrigger.cs`: ゴールオブジェクトの `Collider`(`Is Trigger` = true)にアタッチする。`OnTriggerEnter` でボールとの接触を検知し `Debug.Log("Clear!")` を出力する
 - カメラ追従スクリプト(`CameraFollow.cs` 等): メインカメラにアタッチし、`LateUpdate` でボールのTransformを追従する。オフセットと簡易的なスムージングのみを行う
+- `MazeGenerator.cs`: シーン内の空のGameObjectにアタッチする。`Start()`で穴掘り法(recursive backtracker)により迷路を生成し、`Assets/Materials/WallMaterial.mat` を使った壁(Cube)を`CreatePrimitive`で動的生成する。あわせて `floor` / `ball` / `goal` の各`Transform`(Inspectorでアサイン)を迷路のサイズ・スタート地点・ゴール地点に合わせて再配置する。迷路の大きさ(`width` / `height` / `cellSize` 等)は`[SerializeField]`でInspector調整可能。**Editor上の非再生時のシーンビューでは迷路は見えない**(実行時生成のため)。Play時に毎回ランダムな迷路になる
 
 ### Unity固有の実装ルール
 
