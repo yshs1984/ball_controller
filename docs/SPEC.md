@@ -41,7 +41,7 @@
 - `public void Generate()`: 迷路生成の一連処理(`ClearWalls()` → `GenerateMaze()` → `BuildWalls()` → `PlaceFloor()` → `PlaceBallAndGoal()`)。`Start()`から初回呼び出しされる
 - `public void GenerateNewStage(int stage)`: `width`/`height`を+1(上限12で頭打ち)してから`Generate()`を呼ぶ。ステージクリアのたびに迷路が一回り大きくなる
 - `public void ResetBall()`: 迷路は再生成せず`PlaceBallAndGoal()`だけ呼ぶ(落下リトライ用)
-- 壁は`Assets/Materials/WallMaterial.mat`を使い`CreatePrimitive(PrimitiveType.Cube)`で動的生成する。`BuildWalls()`は列/行の境界線を基準にループし、1つの壁につき1つだけGameObjectを生成する(セル単位でループすると、内部の壁が隣接する2セルの両側から重複生成されてしまうため)
+- 壁は`Assets/Materials/WallMaterial.mat`を使う。`BuildWalls()`は列/行の境界線を基準にループし(セル単位だと内部の壁が隣接する2セルの両側から重複してしまうため)、壁ごとに個別のGameObjectは作らず`CombineInstance`でまとめて**1つのメッシュに結合**する。結合結果は`Walls`という1つのGameObjectにまとめ、`MeshFilter`/`MeshRenderer`(描画)と`MeshCollider`(当たり判定、壁は動かないので非convexのまま)を1組だけ持たせる。壁の数が増えてもドローコール・GameObject数が増えないようにするための最適化(Issue #13)
 - **迷路外周に面する壁は生成しない**(ボールが端まで転がると床の外に落下できる仕様)
 - `ballStartHeight`を`Start()`の最初(まだ一度も落下していない時点)で一度だけ記録し、以後のボール再配置は常にこの値を使う(落下でY座標がマイナスになった状態から再計算すると正しい高さに戻らないバグの対策)
 - 迷路の大きさ(`width` / `height` / `cellSize` 等)は`[SerializeField]`でInspector調整可能

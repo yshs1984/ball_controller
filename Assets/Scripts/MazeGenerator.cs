@@ -28,6 +28,7 @@ public class MazeGenerator : MonoBehaviour
 
     private Cell[,] cells;
     private float ballStartHeight;
+    private Mesh cubeMesh;
 
     private void Start()
     {
@@ -69,7 +70,17 @@ public class MazeGenerator : MonoBehaviour
     {
         for (int i = transform.childCount - 1; i >= 0; i--)
         {
-            Destroy(transform.GetChild(i).gameObject);
+            Transform child = transform.GetChild(i);
+
+            // 動的生成した結合メッシュはGameObjectを消しても自動では解放されないため、
+            // 明示的にDestroyしてメモリリークを防ぐ
+            MeshFilter meshFilter = child.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                Destroy(meshFilter.sharedMesh);
+            }
+
+            Destroy(child.gameObject);
         }
     }
 
@@ -157,11 +168,12 @@ public class MazeGenerator : MonoBehaviour
 
     private void BuildWalls()
     {
+        List<CombineInstance> wallInstances = new List<CombineInstance>();
         float originX = -width * cellSize / 2f;
         float originZ = -height * cellSize / 2f;
 
-        // 内部の壁だけを、区切り線ごとに1枚ずつ生成する(隣接する2セルの両側から
-        // 重複して生成しないよう、列/行の境界を基準にループする)。
+        // 内部の壁だけを、区切り線ごとに1枚ずつ集める(隣接する2セルの両側から
+        // 重複して集めないよう、列/行の境界を基準にループする)。
         // 迷路外周(x=0, x=width, z=0, z=height)の境界線はループ範囲に含めないため、
         // 外周には壁が作られない(ボールが端まで転がると落下できるようにするため)。
 
@@ -174,9 +186,9 @@ public class MazeGenerator : MonoBehaviour
                 {
                     Vector3 position = new Vector3(
                         originX + x * cellSize,
-                        0f,
+                        wallHeight / 2f,
                         originZ + z * cellSize + cellSize / 2f);
-                    CreateWall(position, wallThickness, cellSize);
+                    AddWallInstance(wallInstances, position, wallThickness, cellSize);
                 }
             }
         }
@@ -190,26 +202,64 @@ public class MazeGenerator : MonoBehaviour
                 {
                     Vector3 position = new Vector3(
                         originX + x * cellSize + cellSize / 2f,
-                        0f,
+                        wallHeight / 2f,
                         originZ + z * cellSize);
-                    CreateWall(position, cellSize, wallThickness);
+                    AddWallInstance(wallInstances, position, cellSize, wallThickness);
                 }
             }
         }
-    }
 
-    private void CreateWall(Vector3 center, float sizeX, float sizeZ)
-    {
-        GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        wall.name = "Wall";
-        wall.transform.SetParent(transform);
-        wall.transform.position = new Vector3(center.x, wallHeight / 2f, center.z);
-        wall.transform.localScale = new Vector3(sizeX, wallHeight, sizeZ);
+        if (wallInstances.Count == 0)
+        {
+            return;
+        }
 
+        // 全ての壁を1つのメッシュに結合し、描画(MeshRenderer)と当たり判定(MeshCollider)を
+        // それぞれ1つのGameObjectにまとめる(壁の数だけGameObjectを作らないようにするため)。
+        // 壁は動かない静的オブジェクトなので、MeshColliderは非convex(既定値)のままでよい
+        Mesh combinedMesh = new Mesh();
+        combinedMesh.CombineMeshes(wallInstances.ToArray());
+
+        GameObject walls = new GameObject("Walls");
+        walls.transform.SetParent(transform);
+        walls.transform.localPosition = Vector3.zero;
+        walls.transform.localRotation = Quaternion.identity;
+        walls.transform.localScale = Vector3.one;
+
+        MeshFilter meshFilter = walls.AddComponent<MeshFilter>();
+        meshFilter.sharedMesh = combinedMesh;
+
+        MeshRenderer meshRenderer = walls.AddComponent<MeshRenderer>();
         if (wallMaterial != null)
         {
-            wall.GetComponent<Renderer>().sharedMaterial = wallMaterial;
+            meshRenderer.sharedMaterial = wallMaterial;
         }
+
+        MeshCollider meshCollider = walls.AddComponent<MeshCollider>();
+        meshCollider.sharedMesh = combinedMesh;
+    }
+
+    private void AddWallInstance(List<CombineInstance> wallInstances, Vector3 position, float sizeX, float sizeZ)
+    {
+        CombineInstance instance = new CombineInstance
+        {
+            mesh = GetCubeMesh(),
+            transform = Matrix4x4.TRS(position, Quaternion.identity, new Vector3(sizeX, wallHeight, sizeZ))
+        };
+        wallInstances.Add(instance);
+    }
+
+    // 壁の結合元となる、Unity標準のCubeメッシュを1度だけ取得してキャッシュする
+    private Mesh GetCubeMesh()
+    {
+        if (cubeMesh == null)
+        {
+            GameObject temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cubeMesh = temp.GetComponent<MeshFilter>().sharedMesh;
+            Destroy(temp);
+        }
+
+        return cubeMesh;
     }
 
     private void PlaceFloor()
