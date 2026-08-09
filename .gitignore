@@ -35,3 +35,5 @@ crashlytics-build.properties
 # 追加
 .vscode/
 *.slnx
+.claude.json
+*.exe
