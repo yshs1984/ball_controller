@@ -8,6 +8,7 @@
 3. [ビルド／デプロイ(GitHub Pages 向け WebGL)](#3-ビルドデプロイgithub-pages-向け-webgl)
 4. [Unity Personal(無償版)ライセンスの取得手順](#4-unity-personal無償版ライセンスの取得手順)
 5. [動作確認手順](#5-動作確認手順)
+6. [Unity MCPサーバーの接続(WSL環境向け)](#6-unity-mcpサーバーの接続wsl環境向け)
 
 ---
 
@@ -126,3 +127,26 @@ CI上で要求ファイルを生成する方式(`game-ci/unity-request-activatio
 4. ボールをゴールに入れ、Consoleに`Stage X Clear! Time: Y.YYs`が出力され、一回り大きい新しい迷路が生成されること
 5. ボールを端から落下させ、Consoleに`Fall! Retry Stage X`が出力され、**同じ迷路のまま**ボールが正しい高さでスタート位置に戻ること
 6. WebGL関連の変更をした場合は、ビルド後にGitHub Pages上でも実際にロードできることを確認する(ローカルの`file://`直開きではWebGLビルドは動作しないため、ローカル確認にはHTTPサーバー経由が必要)
+
+---
+
+## 6. Unity MCPサーバーの接続(WSL環境向け)
+
+Unity Editor上でUnity MCPを有効化すると、Consoleログの取得やInspectorの値の参照などをClaude Codeから直接行えるようになる(通常はスクリーンショットや手動での値の報告が必要)。
+
+Claude CodeがWSL上、Unity EditorがWindows上で動いている構成では、以下の手順で接続する。
+
+1. Unity Editor側でMCPを有効化する(`Edit > Project Settings > AI`等)。リレー用の実行ファイルがWindows側の`<Windowsユーザーフォルダ>\.unity\relay\relay_win.exe`に配置される
+2. WSL側からは`/mnt/c/...`形式でこのパスにアクセスできる(例: `/mnt/c/Users/<ユーザー名>/.unity/relay/relay_win.exe`)
+3. WSL側のターミナルで以下を実行し、MCPサーバーとして登録する
+
+   ```bash
+   claude mcp add unity-mcp -- "/mnt/c/Users/<ユーザー名>/.unity/relay/relay_win.exe" --mcp
+   ```
+
+4. `claude mcp list` で `unity-mcp` が `✔ Connected` になっていれば成功
+5. **登録した接続は次回以降の新しいセッションから有効になる**(登録した同じセッション内ではすぐには使えない)
+
+### 注意
+- Unity MCP導入時に、個人のアカウント情報を含む`.claude.json`や、リレー用の`relay_win.exe`(約100MB)がリポジトリ直下に誤って置かれることがある。`.gitignore`で除外済みだが、`git status`で紛れ込んでいないか都度確認する
+- 詳しい活用方法・調査状況はIssue #33を参照
