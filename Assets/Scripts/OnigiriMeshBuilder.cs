@@ -26,16 +26,28 @@ public class OnigiriMeshBuilder : MonoBehaviour
     // 組み合わせ、メッシュを2つのサブメッシュ(米/海苔)に分けて描画する
     [SerializeField] private Material noriMaterial;
 
-    // 海苔の帯が覆う範囲。おむすびのZ方向の広がり(底辺=0、頂点=1)に対する割合で指定する。
-    // 帯はZ軸に垂直な2枚の平面で切り出すため、三角形の断面ではなく
-    // 「三角柱に四角柱を埋め込んだ」ような直線的な境界になる
+    // 海苔は「三角柱を貫く四角柱」として切り出す。
+    // 底辺側からどこまで覆うかをZ方向の広がり(底辺=0、頂点=1)に対する割合で、
+    // 帯の幅をX方向の広がりに対する割合で指定する。
+    // 幅を1未満にすることで、上下の面には三角形の輪郭に沿わない長方形として現れる
     [SerializeField, Range(0f, 1f)] private float noriStartRatio = 0f;
-    [SerializeField, Range(0f, 1f)] private float noriEndRatio = 0.4f;
+    [SerializeField, Range(0f, 1f)] private float noriEndRatio = 0.45f;
+    [SerializeField, Range(0f, 1f)] private float noriWidthRatio = 0.45f;
 
     private const int CornerCount = 3;
 
     // 頂点が切断面のちょうど上に乗っているかを判定する許容誤差
     private const float SplitEpsilon = 1e-5f;
+
+    // 3点が一直線に並んでいるとみなす閾値(外積の大きさの2乗で比較する)。
+    // 実際の角は外積の2乗が1e-6以上あるため、正しい角を削ってしまう心配はない
+    private const float CollinearEpsilonSqr = 1e-12f;
+
+    private enum Axis
+    {
+        X,
+        Z
+    }
 
     private void Awake()
     {
@@ -103,8 +115,7 @@ public class OnigiriMeshBuilder : MonoBehaviour
     }
 
     // 丸めた三角形の輪郭をY軸方向に押し出して三角柱メッシュを組み立てる。
-    // 海苔の帯はZ軸に垂直な2枚の平面で切り出し、厚み方向(Y)には全体を貫く。
-    // これにより海苔は三角形の断面をなぞる形ではなく、直線的な境界を持つ板になる
+    // 海苔はX・Zの両方向に区切った「四角柱」で切り出し、厚み方向(Y)には全体を貫く
     private Mesh BuildPrismMesh(List<Vector3> profile)
     {
         float topY = thickness / 2f;
@@ -112,50 +123,75 @@ public class OnigiriMeshBuilder : MonoBehaviour
 
         float minZ = float.MaxValue;
         float maxZ = float.MinValue;
+        float maxAbsX = 0f;
         foreach (Vector3 p in profile)
         {
             minZ = Mathf.Min(minZ, p.z);
             maxZ = Mathf.Max(maxZ, p.z);
+            maxAbsX = Mathf.Max(maxAbsX, Mathf.Abs(p.x));
         }
 
         float noriMinZ = Mathf.Lerp(minZ, maxZ, Mathf.Min(noriStartRatio, noriEndRatio));
         float noriMaxZ = Mathf.Lerp(minZ, maxZ, Mathf.Max(noriStartRatio, noriEndRatio));
+        float noriHalfX = maxAbsX * noriWidthRatio;
 
-        // 切断面と交わる位置に頂点を挿し込み、輪郭のどの辺も1つの領域に収まるようにする
-        List<Vector3> outline = InsertSplitPoints(profile, noriMinZ);
-        outline = InsertSplitPoints(outline, noriMaxZ);
+        // 側面用に、4枚の切断面すべての交点を輪郭へ挿し込んでおく。
+        // こうすると各辺は海苔か米のどちらか一方に収まる
+        List<Vector3> outline = InsertCrossings(profile, Axis.Z, noriMinZ);
+        outline = InsertCrossings(outline, Axis.Z, noriMaxZ);
+        outline = InsertCrossings(outline, Axis.X, -noriHalfX);
+        outline = InsertCrossings(outline, Axis.X, noriHalfX);
 
-        // 凸多角形をZ方向の2平面で切ると、3つの領域はいずれも凸多角形になる。
-        // 巡回順を保ったまま抽出すれば、そのまま扇状に三角形分割できる
-        List<Vector3> riceNear = SelectRange(outline, minZ - 1f, noriMinZ);
-        List<Vector3> nori = SelectRange(outline, noriMinZ, noriMaxZ);
-        List<Vector3> riceFar = SelectRange(outline, noriMaxZ, maxZ + 1f);
+        // フタは切断面ごとに切り分ける。凸多角形を平面で切った断片はどちらも凸なので、
+        // 巡回順を保ったまま振り分けるだけで、そのまま扇状に三角形分割できる
+        List<Vector3> nearBase, aboveBase, withinBand, beyondBand, leftOfNori, fromLeftEdge, nori, rightOfNori;
+        SplitConvex(outline, Axis.Z, noriMinZ, out nearBase, out aboveBase);
+        SplitConvex(aboveBase, Axis.Z, noriMaxZ, out withinBand, out beyondBand);
+        SplitConvex(withinBand, Axis.X, -noriHalfX, out leftOfNori, out fromLeftEdge);
+        SplitConvex(fromLeftEdge, Axis.X, noriHalfX, out nori, out rightOfNori);
+
+        List<List<Vector3>> ricePieces = new List<List<Vector3>>
+        {
+            nearBase, beyondBand, leftOfNori, rightOfNori
+        };
 
         List<Vector3> vertices = new List<Vector3>();
         List<Vector3> normals = new List<Vector3>();
         List<int> riceTriangles = new List<int>();
         List<int> noriTriangles = new List<int>();
 
-        // 上下のフタ。下フタは輪郭の並び順そのままで法線が-Yになるので、上フタは並びを反転させる
-        AddCapPolygon(vertices, normals, riceTriangles, riceNear, topY, Vector3.up, reverse: true);
-        AddCapPolygon(vertices, normals, riceTriangles, riceFar, topY, Vector3.up, reverse: true);
-        AddCapPolygon(vertices, normals, noriTriangles, nori, topY, Vector3.up, reverse: true);
+        // 上下のフタ。下フタは輪郭の並び順そのままで法線が-Yになるので、上フタは並びを反転させる。
+        // 切り分けの端には一直線に並んだ頂点が残るため、先に間引いてから三角形にする
+        foreach (List<Vector3> piece in ricePieces)
+        {
+            List<Vector3> cleaned = RemoveRedundantVertices(piece);
+            AddCapPolygon(vertices, normals, riceTriangles, cleaned, topY, Vector3.up, reverse: true);
+            AddCapPolygon(vertices, normals, riceTriangles, cleaned, bottomY, Vector3.down, reverse: false);
+        }
 
-        AddCapPolygon(vertices, normals, riceTriangles, riceNear, bottomY, Vector3.down, reverse: false);
-        AddCapPolygon(vertices, normals, riceTriangles, riceFar, bottomY, Vector3.down, reverse: false);
-        AddCapPolygon(vertices, normals, noriTriangles, nori, bottomY, Vector3.down, reverse: false);
+        List<Vector3> cleanedNori = RemoveRedundantVertices(nori);
+        AddCapPolygon(vertices, normals, noriTriangles, cleanedNori, topY, Vector3.up, reverse: true);
+        AddCapPolygon(vertices, normals, noriTriangles, cleanedNori, bottomY, Vector3.down, reverse: false);
 
-        // 側面。切断点を挿し込んであるので、各辺は米か海苔のどちらか一方に属する
+        // 側面
         int count = outline.Count;
         for (int i = 0; i < count; i++)
         {
             Vector3 a = outline[i];
             Vector3 b = outline[(i + 1) % count];
 
-            float midZ = (a.z + b.z) / 2f;
-            List<int> target = (midZ >= noriMinZ && midZ <= noriMaxZ) ? noriTriangles : riceTriangles;
+            // 切断面が既存の頂点とほぼ重なった場合、幅ゼロの側面ができるので飛ばす
+            if ((b - a).sqrMagnitude <= SplitEpsilon * SplitEpsilon)
+            {
+                continue;
+            }
 
-            AddQuad(vertices, normals, target,
+            Vector3 mid = (a + b) / 2f;
+            bool isNori = mid.z >= noriMinZ - SplitEpsilon
+                && mid.z <= noriMaxZ + SplitEpsilon
+                && Mathf.Abs(mid.x) <= noriHalfX + SplitEpsilon;
+
+            AddQuad(vertices, normals, isNori ? noriTriangles : riceTriangles,
                 new Vector3(a.x, bottomY, a.z),
                 new Vector3(a.x, topY, a.z),
                 new Vector3(b.x, topY, b.z),
@@ -173,8 +209,13 @@ public class OnigiriMeshBuilder : MonoBehaviour
         return mesh;
     }
 
-    // 輪郭がZ=splitZの平面をまたぐ辺に、交点の頂点を挿し込む
-    private List<Vector3> InsertSplitPoints(List<Vector3> outline, float splitZ)
+    private static float Coordinate(Vector3 point, Axis axis)
+    {
+        return axis == Axis.X ? point.x : point.z;
+    }
+
+    // 輪郭が切断面をまたぐ辺に、交点の頂点を挿し込む
+    private List<Vector3> InsertCrossings(List<Vector3> outline, Axis axis, float value)
     {
         List<Vector3> result = new List<Vector3>();
         int count = outline.Count;
@@ -185,32 +226,85 @@ public class OnigiriMeshBuilder : MonoBehaviour
             Vector3 b = outline[(i + 1) % count];
             result.Add(a);
 
-            bool aBelow = a.z < splitZ - SplitEpsilon;
-            bool bBelow = b.z < splitZ - SplitEpsilon;
-            bool aAbove = a.z > splitZ + SplitEpsilon;
-            bool bAbove = b.z > splitZ + SplitEpsilon;
+            float coordA = Coordinate(a, axis);
+            float coordB = Coordinate(b, axis);
+
+            bool aBelow = coordA < value - SplitEpsilon;
+            bool bBelow = coordB < value - SplitEpsilon;
+            bool aAbove = coordA > value + SplitEpsilon;
+            bool bAbove = coordB > value + SplitEpsilon;
 
             if ((aBelow && bAbove) || (aAbove && bBelow))
             {
-                float t = (splitZ - a.z) / (b.z - a.z);
-                result.Add(Vector3.Lerp(a, b, t));
+                result.Add(Vector3.Lerp(a, b, (value - coordA) / (coordB - coordA)));
             }
         }
 
         return result;
     }
 
-    // Zが指定範囲に収まる頂点だけを、元の巡回順を保ったまま取り出す。
-    // 凸多角形をZ方向の帯で切り取った領域は凸なので、この並びのまま扇状分割してよい
-    private List<Vector3> SelectRange(List<Vector3> outline, float fromZ, float toZ)
+    // 凸多角形を軸に垂直な平面で2つに切る。
+    // 切り口の頂点を挿し込んでから座標で振り分けるだけでよく、
+    // 巡回順が保たれるため断片はそのまま凸多角形として扱える
+    private void SplitConvex(
+        List<Vector3> polygon,
+        Axis axis,
+        float value,
+        out List<Vector3> below,
+        out List<Vector3> above)
     {
-        List<Vector3> result = new List<Vector3>();
+        List<Vector3> withCrossings = InsertCrossings(polygon, axis, value);
 
-        foreach (Vector3 p in outline)
+        below = new List<Vector3>();
+        above = new List<Vector3>();
+
+        foreach (Vector3 p in withCrossings)
         {
-            if (p.z >= fromZ - SplitEpsilon && p.z <= toZ + SplitEpsilon)
+            float coord = Coordinate(p, axis);
+            if (coord <= value + SplitEpsilon)
             {
-                result.Add(p);
+                below.Add(p);
+            }
+            if (coord >= value - SplitEpsilon)
+            {
+                above.Add(p);
+            }
+        }
+    }
+
+    // 重複した頂点と、一直線に並んでいて角になっていない頂点を取り除く。
+    // 切り分けた断片の端にはこうした頂点が残り、そのまま扇状分割すると
+    // 面積ゼロの三角形がメッシュに紛れ込んでしまう
+    private List<Vector3> RemoveRedundantVertices(List<Vector3> polygon)
+    {
+        List<Vector3> unique = new List<Vector3>();
+
+        foreach (Vector3 p in polygon)
+        {
+            if (unique.Count == 0 || (p - unique[unique.Count - 1]).sqrMagnitude > SplitEpsilon * SplitEpsilon)
+            {
+                unique.Add(p);
+            }
+        }
+
+        // 先頭と末尾が重なっている場合も1つにまとめる
+        if (unique.Count > 1 && (unique[0] - unique[unique.Count - 1]).sqrMagnitude <= SplitEpsilon * SplitEpsilon)
+        {
+            unique.RemoveAt(unique.Count - 1);
+        }
+
+        List<Vector3> result = new List<Vector3>();
+        int count = unique.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector3 prev = unique[(i + count - 1) % count];
+            Vector3 current = unique[i];
+            Vector3 next = unique[(i + 1) % count];
+
+            if (Vector3.Cross(current - prev, next - prev).sqrMagnitude > CollinearEpsilonSqr)
+            {
+                result.Add(current);
             }
         }
 
