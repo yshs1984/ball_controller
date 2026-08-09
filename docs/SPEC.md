@@ -44,6 +44,7 @@
 - 壁は`Assets/Materials/WallMaterial.mat`を使う。`BuildWalls()`は列/行の境界線を基準にループし(セル単位だと内部の壁が隣接する2セルの両側から重複してしまうため)、壁ごとに個別のGameObjectは作らず`CombineInstance`でまとめて**1つのメッシュに結合**する。結合結果は`Walls`という1つのGameObjectにまとめ、`MeshFilter`/`MeshRenderer`(描画)と`MeshCollider`(当たり判定、壁は動かないので非convexのまま)を1組だけ持たせる。壁の数が増えてもドローコール・GameObject数が増えないようにするための最適化(Issue #13)
 - **迷路外周に面する壁は生成しない**(ボールが端まで転がると床の外に落下できる仕様)
 - `ballStartHeight`を`Start()`の最初(まだ一度も落下していない時点)で一度だけ記録し、以後のボール再配置は常にこの値を使う(落下でY座標がマイナスになった状態から再計算すると正しい高さに戻らないバグの対策)
+- ボールの再配置は**`Rigidbody.position`に代入する**(`Transform.position`ではない)。Ballの`Rigidbody`は`Interpolate`が有効なため、`Transform.position`へ直接代入しても次フレームの補間処理で物理エンジン側の古い位置に巻き戻されてしまう(Issue #19の原因)。`Rigidbody.position`への代入は物理エンジンの記録ごとテレポートさせる正しい方法
 - 迷路の大きさ(`width` / `height` / `cellSize` 等)は`[SerializeField]`でInspector調整可能
 - **Editor上の非再生時のシーンビューでは迷路は見えない**(`Start()`での実行時生成のため)。Play時に毎回ランダムな迷路になる
 

@@ -318,13 +318,20 @@ public class MazeGenerator : MonoBehaviour
                 originX + cellSize / 2f,
                 ballStartHeight,
                 originZ + cellSize / 2f);
-            ball.position = startPosition;
 
             Rigidbody ballRigidbody = ball.GetComponent<Rigidbody>();
             if (ballRigidbody != null)
             {
+                // Rigidbodyの Interpolate が有効だと、Transform.position への直接代入は
+                // 次フレームの補間処理で物理エンジン側の古い位置に巻き戻されてしまう。
+                // Rigidbody.position に代入することで、物理エンジン側の記録ごとテレポートさせる
+                ballRigidbody.position = startPosition;
                 ballRigidbody.linearVelocity = Vector3.zero;
                 ballRigidbody.angularVelocity = Vector3.zero;
+            }
+            else
+            {
+                ball.position = startPosition;
             }
         }
 
