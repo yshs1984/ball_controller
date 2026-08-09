@@ -8,7 +8,6 @@ public class MazeGenerator : MonoBehaviour
     [SerializeField] private int width = 6;
     [SerializeField] private int height = 6;
     [SerializeField] private float cellSize = 4f;
-    [SerializeField] private float narrowCellSize = 2f;
     [SerializeField] private float wallHeight = 2f;
     [SerializeField] private float wallThickness = 0.3f;
     [SerializeField] private Material wallMaterial;
@@ -16,8 +15,11 @@ public class MazeGenerator : MonoBehaviour
     [SerializeField] private Transform ball;
     [SerializeField] private Transform goal;
 
-    // 何ステージに1回、通路が細い「細道チャレンジ」にするか
+    // 何ステージに1回、迷路の形が細長い「細道チャレンジ」にするか
     private const int NarrowStageInterval = 3;
+
+    // 細道チャレンジでの短辺のセル数(固定)
+    private const int NarrowStageShortSide = 3;
 
     private struct Cell
     {
@@ -32,8 +34,12 @@ public class MazeGenerator : MonoBehaviour
 
     private Cell[,] cells;
     private float ballStartHeight;
-    private float normalCellSize;
     private Mesh cubeMesh;
+
+    // 細道チャレンジを挟んでも通常ステージの大きさが不自然にならないよう、
+    // 「本来の(正方形に近い)進行」を細道チャレンジとは別に記録しておく
+    private int progressWidth;
+    private int progressHeight;
 
     private void Start()
     {
@@ -44,8 +50,8 @@ public class MazeGenerator : MonoBehaviour
             ballStartHeight = ball.position.y;
         }
 
-        // 細道チャレンジ後に通常の通路幅へ戻せるよう、本来のcellSizeを記録しておく
-        normalCellSize = cellSize;
+        progressWidth = width;
+        progressHeight = height;
 
         Generate();
     }
@@ -61,18 +67,26 @@ public class MazeGenerator : MonoBehaviour
     }
 
     // ステージが進むごとに迷路を一回り大きくして再生成する(上限MaxSizeで頭打ち)。
-    // NarrowStageIntervalの倍数のステージは、通路が細い「細道チャレンジ」にする
+    // NarrowStageIntervalの倍数のステージは、迷路の形が細長い「細道チャレンジ」にする
     public void GenerateNewStage(int stage)
     {
-        width = Mathf.Min(MaxSize, width + 1);
-        height = Mathf.Min(MaxSize, height + 1);
+        // 「本来の」進行は細道チャレンジを挟んでも常に+1ずつ伸ばしておく
+        progressWidth = Mathf.Min(MaxSize, progressWidth + 1);
+        progressHeight = Mathf.Min(MaxSize, progressHeight + 1);
 
         bool isNarrowStage = stage % NarrowStageInterval == 0;
-        cellSize = isNarrowStage ? narrowCellSize : normalCellSize;
 
         if (isNarrowStage)
         {
+            // 短辺を固定で狭くし、長辺は現在の進行度合いを合算して伸ばす(細長い形にする)
+            width = Mathf.Min(MaxSize, progressWidth + progressHeight);
+            height = NarrowStageShortSide;
             Debug.Log($"Stage {stage}: 細道チャレンジ!");
+        }
+        else
+        {
+            width = progressWidth;
+            height = progressHeight;
         }
 
         Generate();
