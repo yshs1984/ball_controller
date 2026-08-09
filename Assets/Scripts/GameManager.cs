@@ -4,6 +4,7 @@ using UnityEngine;
 public class GameManager : MonoBehaviour
 {
     [SerializeField] private MazeGenerator mazeGenerator;
+    [SerializeField] private UIManager uiManager;
 
     private int currentStage = 1;
     private float stageStartTime;
@@ -17,6 +18,11 @@ public class GameManager : MonoBehaviour
     {
         stageStartTime = Time.time;
         Debug.Log($"Stage {currentStage} Start");
+
+        if (uiManager != null)
+        {
+            uiManager.ShowStageAnnouncement(currentStage);
+        }
     }
 
     // GoalTriggerから呼ばれる
@@ -24,6 +30,11 @@ public class GameManager : MonoBehaviour
     {
         float clearTime = Time.time - stageStartTime;
         Debug.Log($"Stage {currentStage} Clear! Time: {clearTime:F2}s");
+
+        if (uiManager != null)
+        {
+            uiManager.ShowClear();
+        }
 
         currentStage++;
 

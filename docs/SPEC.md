@@ -51,16 +51,26 @@
 ### `GameManager.cs`
 シーン内の空のGameObjectにアタッチする。ステージ進行とクリアタイム計測を管理する。
 
-- `mazeGenerator`への参照(Inspectorでアサイン)を持つ
+- `mazeGenerator` / `uiManager`への参照(Inspectorでアサイン)を持つ
 - ステージ数(`currentStage`、1始まり)とステージ開始時刻(`Time.time`)を保持
-- `public void OnGoalReached()`(`GoalTrigger`から呼ばれる): クリアタイムを`Stage X Clear! Time: Y.YYs`として`Debug.Log`に出力し、ステージを進め、`mazeGenerator.GenerateNewStage()`を呼ぶ
+- `public void OnGoalReached()`(`GoalTrigger`から呼ばれる): クリアタイムを`Stage X Clear! Time: Y.YYs`として`Debug.Log`に出力し、`uiManager.ShowClear()`を呼び、ステージを進め、`mazeGenerator.GenerateNewStage()`を呼ぶ
 - `public void OnBallFell()`(`FallDetector`から呼ばれる): `Fall! Retry Stage X`をログ出力し、`mazeGenerator.ResetBall()`で**同じ迷路のまま**ボールを戻す(ステージは進めない)
-- 画面上のUI表示は無く、Consoleログのみ
+- `StartStage()`(ステージ開始時、内部から呼ばれる)で`uiManager.ShowStageAnnouncement(currentStage)`を呼ぶ
+- Consoleログに加えて、画面上の一時的なテキスト表示(`UIManager.cs`)も行う
 
 ### `FallDetector.cs`
 ボールにアタッチする。
 
 - `Update()`でボールのY座標を監視し、`fallThreshold`(既定 `-15`。落下の「間」を持たせるため意図的に深めに設定)を下回ったら`gameManager`(Inspectorでアサイン)の`OnBallFell()`を呼ぶ
+
+### `UIManager.cs`
+シーン内の空のGameObjectにアタッチする。画面上に一時的なテキストを表示する。
+
+- `stageText` / `clearText`(いずれも`UnityEngine.UI.Text`、Inspectorでアサイン)を持つ
+- `public void ShowStageAnnouncement(int stage)`: 「ステージ X」を`stageAnnounceDuration`(既定3秒)だけ表示してから自動的に消す(コルーチン)
+- `public void ShowClear()`: 「ステージクリア!」を`clearDisplayDuration`(既定2秒)だけ表示してから自動的に消す
+- どちらも、表示中に別の表示が呼ばれたら現在のコルーチンを停止して切り替える(表示が重ならないようにする)
+- Canvas/Textの作成自体はUnity Editor上での手動作業(GameObject > UI > ...)で行い、`UIManager`コンポーネントの`Stage Text` / `Clear Text`欄にInspectorでドラッグ&ドロップする運用(Canvas関連はUnity組み込みUIパッケージのGUIDに依存する箇所が多く、シーンファイルの直接編集ではリスクが高いため)
 
 ---
 
@@ -74,7 +84,8 @@
 | `Goal` | `Cube`メッシュ, `Collider`(`Is Trigger`), `GoalTrigger` | ゴール判定 |
 | `Floor` | `Cube`メッシュを平たく潰したもの, `Collider` | 床。`MazeGenerator`がサイズを迷路に合わせて変更する |
 | `MazeGenerator`(空) | `MazeGenerator` | 迷路生成の起点。`wallMaterial`/`floor`/`ball`/`goal`をInspectorで参照 |
-| `GameManager`(空) | `GameManager` | ステージ進行・タイマー管理。`mazeGenerator`をInspectorで参照 |
+| `GameManager`(空) | `GameManager` | ステージ進行・タイマー管理。`mazeGenerator` / `uiManager`をInspectorで参照 |
+| `UIManager`(空) | `UIManager` | 画面上のテキスト表示。`stageText` / `clearText`はEditor上でCanvas配下に作成したTextをInspectorでアサイン |
 | `Main Camera` | `Camera`, `CameraFollow` | `target`にBallの`Transform`をInspectorでアサイン |
 
 マテリアルは`Assets/Materials/`配下(`FloorMaterial` / `BallMaterial` / `GoalMaterial` / `WallMaterial`、いずれもURP Litシェーダー)。
