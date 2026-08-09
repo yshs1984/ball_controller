@@ -646,6 +646,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::OnigiriMeshBuilder
   radius: 0.6
   thickness: 0.8
+  cornerRadius: 0.18
+  cornerSegments: 6
+  noriMaterial: {fileID: 2100000, guid: aa696b014f512bf4ababa6ca6044f796, type: 2}
 --- !u!64 &222200010
 MeshCollider:
   m_ObjectHideFlags: 0
