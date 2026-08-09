@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// ボールを「おむすび」(角を丸めた三角柱。下半分に海苔の帯)の見た目・当たり判定にする。
+// ボールを「おむすび」(角を丸めた三角柱に、海苔の帯を巻いたもの)の見た目・当たり判定にする。
 // Unityには三角柱の標準プリミティブが無いため、MazeGeneratorの壁生成と同様に
 // 実行時にコードでメッシュを組み立てる。
 // そのため、Editor上の非再生時のシーンビューでは古いメッシュのまま表示される
@@ -15,8 +15,8 @@ public class OnigiriMeshBuilder : MonoBehaviour
     // 薄くすると底面が安定しすぎて転ばず、床を滑るだけの動きになる。
     [SerializeField] private float thickness = 0.8f;
 
-    // 角の丸め半径。正三角形の内角は60度なので、半径radiusの三角形では
-    // 辺同士が radius/2 未満でないと隣り合う角の丸めが重なってしまう
+    // 角の丸め半径。正三角形の内角は60度なので、辺の長さに対して大きくしすぎると
+    // 隣り合う角の丸めどうしが重なってしまう
     [SerializeField] private float cornerRadius = 0.18f;
 
     // 角1つあたりの丸めの分割数(多いほど滑らかになる)
@@ -26,7 +26,16 @@ public class OnigiriMeshBuilder : MonoBehaviour
     // 組み合わせ、メッシュを2つのサブメッシュ(米/海苔)に分けて描画する
     [SerializeField] private Material noriMaterial;
 
+    // 海苔の帯が覆う範囲。おむすびのZ方向の広がり(底辺=0、頂点=1)に対する割合で指定する。
+    // 帯はZ軸に垂直な2枚の平面で切り出すため、三角形の断面ではなく
+    // 「三角柱に四角柱を埋め込んだ」ような直線的な境界になる
+    [SerializeField, Range(0f, 1f)] private float noriStartRatio = 0f;
+    [SerializeField, Range(0f, 1f)] private float noriEndRatio = 0.4f;
+
     private const int CornerCount = 3;
+
+    // 頂点が切断面のちょうど上に乗っているかを判定する許容誤差
+    private const float SplitEpsilon = 1e-5f;
 
     private void Awake()
     {
@@ -94,40 +103,63 @@ public class OnigiriMeshBuilder : MonoBehaviour
     }
 
     // 丸めた三角形の輪郭をY軸方向に押し出して三角柱メッシュを組み立てる。
-    // 側面は高さの中間で上下2段に分け、下段を海苔(サブメッシュ1)、
-    // 上段と上下のフタを米(サブメッシュ0)にする
+    // 海苔の帯はZ軸に垂直な2枚の平面で切り出し、厚み方向(Y)には全体を貫く。
+    // これにより海苔は三角形の断面をなぞる形ではなく、直線的な境界を持つ板になる
     private Mesh BuildPrismMesh(List<Vector3> profile)
     {
         float topY = thickness / 2f;
         float bottomY = -thickness / 2f;
+
+        float minZ = float.MaxValue;
+        float maxZ = float.MinValue;
+        foreach (Vector3 p in profile)
+        {
+            minZ = Mathf.Min(minZ, p.z);
+            maxZ = Mathf.Max(maxZ, p.z);
+        }
+
+        float noriMinZ = Mathf.Lerp(minZ, maxZ, Mathf.Min(noriStartRatio, noriEndRatio));
+        float noriMaxZ = Mathf.Lerp(minZ, maxZ, Mathf.Max(noriStartRatio, noriEndRatio));
+
+        // 切断面と交わる位置に頂点を挿し込み、輪郭のどの辺も1つの領域に収まるようにする
+        List<Vector3> outline = InsertSplitPoints(profile, noriMinZ);
+        outline = InsertSplitPoints(outline, noriMaxZ);
+
+        // 凸多角形をZ方向の2平面で切ると、3つの領域はいずれも凸多角形になる。
+        // 巡回順を保ったまま抽出すれば、そのまま扇状に三角形分割できる
+        List<Vector3> riceNear = SelectRange(outline, minZ - 1f, noriMinZ);
+        List<Vector3> nori = SelectRange(outline, noriMinZ, noriMaxZ);
+        List<Vector3> riceFar = SelectRange(outline, noriMaxZ, maxZ + 1f);
 
         List<Vector3> vertices = new List<Vector3>();
         List<Vector3> normals = new List<Vector3>();
         List<int> riceTriangles = new List<int>();
         List<int> noriTriangles = new List<int>();
 
-        // 上のフタ(米)。下のフタとは逆順に頂点を並べて法線を+Yにする
-        AddCap(vertices, normals, riceTriangles, profile, topY, Vector3.up, naturalOrder: false);
+        // 上下のフタ。下フタは輪郭の並び順そのままで法線が-Yになるので、上フタは並びを反転させる
+        AddCapPolygon(vertices, normals, riceTriangles, riceNear, topY, Vector3.up, reverse: true);
+        AddCapPolygon(vertices, normals, riceTriangles, riceFar, topY, Vector3.up, reverse: true);
+        AddCapPolygon(vertices, normals, noriTriangles, nori, topY, Vector3.up, reverse: true);
 
-        // 下のフタ(海苔)。地面に接する面
-        AddCap(vertices, normals, noriTriangles, profile, bottomY, Vector3.down, naturalOrder: true);
+        AddCapPolygon(vertices, normals, riceTriangles, riceNear, bottomY, Vector3.down, reverse: false);
+        AddCapPolygon(vertices, normals, riceTriangles, riceFar, bottomY, Vector3.down, reverse: false);
+        AddCapPolygon(vertices, normals, noriTriangles, nori, bottomY, Vector3.down, reverse: false);
 
-        // 側面。各辺を下(海苔)→中間→上(米)の2段の四角形として積む
-        int count = profile.Count;
+        // 側面。切断点を挿し込んであるので、各辺は米か海苔のどちらか一方に属する
+        int count = outline.Count;
         for (int i = 0; i < count; i++)
         {
-            Vector3 a = profile[i];
-            Vector3 b = profile[(i + 1) % count];
+            Vector3 a = outline[i];
+            Vector3 b = outline[(i + 1) % count];
 
-            Vector3 aBottom = new Vector3(a.x, bottomY, a.z);
-            Vector3 aMiddle = new Vector3(a.x, 0f, a.z);
-            Vector3 aTop = new Vector3(a.x, topY, a.z);
-            Vector3 bBottom = new Vector3(b.x, bottomY, b.z);
-            Vector3 bMiddle = new Vector3(b.x, 0f, b.z);
-            Vector3 bTop = new Vector3(b.x, topY, b.z);
+            float midZ = (a.z + b.z) / 2f;
+            List<int> target = (midZ >= noriMinZ && midZ <= noriMaxZ) ? noriTriangles : riceTriangles;
 
-            AddQuad(vertices, normals, noriTriangles, aBottom, aMiddle, bMiddle, bBottom);
-            AddQuad(vertices, normals, riceTriangles, aMiddle, aTop, bTop, bMiddle);
+            AddQuad(vertices, normals, target,
+                new Vector3(a.x, bottomY, a.z),
+                new Vector3(a.x, topY, a.z),
+                new Vector3(b.x, topY, b.z),
+                new Vector3(b.x, bottomY, b.z));
         }
 
         Mesh mesh = new Mesh { name = "Onigiri" };
@@ -141,44 +173,79 @@ public class OnigiriMeshBuilder : MonoBehaviour
         return mesh;
     }
 
-    // フタ(上または下)を中心から輪郭へ扇状に三角形分割して追加する
-    private void AddCap(
+    // 輪郭がZ=splitZの平面をまたぐ辺に、交点の頂点を挿し込む
+    private List<Vector3> InsertSplitPoints(List<Vector3> outline, float splitZ)
+    {
+        List<Vector3> result = new List<Vector3>();
+        int count = outline.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector3 a = outline[i];
+            Vector3 b = outline[(i + 1) % count];
+            result.Add(a);
+
+            bool aBelow = a.z < splitZ - SplitEpsilon;
+            bool bBelow = b.z < splitZ - SplitEpsilon;
+            bool aAbove = a.z > splitZ + SplitEpsilon;
+            bool bAbove = b.z > splitZ + SplitEpsilon;
+
+            if ((aBelow && bAbove) || (aAbove && bBelow))
+            {
+                float t = (splitZ - a.z) / (b.z - a.z);
+                result.Add(Vector3.Lerp(a, b, t));
+            }
+        }
+
+        return result;
+    }
+
+    // Zが指定範囲に収まる頂点だけを、元の巡回順を保ったまま取り出す。
+    // 凸多角形をZ方向の帯で切り取った領域は凸なので、この並びのまま扇状分割してよい
+    private List<Vector3> SelectRange(List<Vector3> outline, float fromZ, float toZ)
+    {
+        List<Vector3> result = new List<Vector3>();
+
+        foreach (Vector3 p in outline)
+        {
+            if (p.z >= fromZ - SplitEpsilon && p.z <= toZ + SplitEpsilon)
+            {
+                result.Add(p);
+            }
+        }
+
+        return result;
+    }
+
+    // フタ(上または下)を、先頭の頂点から扇状に三角形分割して追加する
+    private void AddCapPolygon(
         List<Vector3> vertices,
         List<Vector3> normals,
         List<int> triangles,
-        List<Vector3> profile,
+        List<Vector3> polygon,
         float y,
         Vector3 normal,
-        bool naturalOrder)
+        bool reverse)
     {
-        int centerIndex = vertices.Count;
-        vertices.Add(new Vector3(0f, y, 0f));
-        normals.Add(normal);
-
-        int firstOuterIndex = vertices.Count;
-        foreach (Vector3 p in profile)
+        if (polygon.Count < 3)
         {
+            return;
+        }
+
+        int baseIndex = vertices.Count;
+
+        for (int i = 0; i < polygon.Count; i++)
+        {
+            Vector3 p = polygon[reverse ? polygon.Count - 1 - i : i];
             vertices.Add(new Vector3(p.x, y, p.z));
             normals.Add(normal);
         }
 
-        int count = profile.Count;
-        for (int i = 0; i < count; i++)
+        for (int i = 1; i < polygon.Count - 1; i++)
         {
-            int a = firstOuterIndex + i;
-            int b = firstOuterIndex + (i + 1) % count;
-
-            triangles.Add(centerIndex);
-            if (naturalOrder)
-            {
-                triangles.Add(a);
-                triangles.Add(b);
-            }
-            else
-            {
-                triangles.Add(b);
-                triangles.Add(a);
-            }
+            triangles.Add(baseIndex);
+            triangles.Add(baseIndex + i);
+            triangles.Add(baseIndex + i + 1);
         }
     }
 

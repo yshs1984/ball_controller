@@ -649,6 +649,8 @@ MonoBehaviour:
   cornerRadius: 0.18
   cornerSegments: 6
   noriMaterial: {fileID: 2100000, guid: aa696b014f512bf4ababa6ca6044f796, type: 2}
+  noriStartRatio: 0
+  noriEndRatio: 0.4
 --- !u!64 &222200010
 MeshCollider:
   m_ObjectHideFlags: 0
