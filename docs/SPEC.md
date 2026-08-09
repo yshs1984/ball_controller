@@ -54,7 +54,7 @@
 
 - `mazeGenerator` / `uiManager`への参照(Inspectorでアサイン)を持つ
 - ステージ数(`currentStage`、1始まり)とステージ開始時刻(`Time.time`)を保持
-- `public void OnGoalReached()`(`GoalTrigger`から呼ばれる): クリアタイムを`Stage X Clear! Time: Y.YYs`として`Debug.Log`に出力し、`uiManager.ShowClear()`を呼び、ステージを進め、`mazeGenerator.GenerateNewStage()`を呼ぶ
+- `public void OnGoalReached()`(`GoalTrigger`から呼ばれる): クリアタイムを`Stage X Clear! Time: Y.YYs`として`Debug.Log`に出力し、ステージ数を進めてから`uiManager.ShowClear()`を呼ぶ。その後`clearToNextStageDelay`(既定2秒。`UIManager`の`clearDisplayDuration`と揃えてある)待ってから`mazeGenerator.GenerateNewStage()`と次ステージ開始を行う(`AdvanceStageAfterClear()`コルーチン)。`ShowClear()`と`ShowStageAnnouncement()`を同じフレームで連続実行すると、後者が前者の表示を即座に打ち消してしまうため、間隔を空けている
 - `public void OnBallFell()`(`FallDetector`から呼ばれる): `Fall! Retry Stage X`をログ出力し、`mazeGenerator.ResetBall()`で**同じ迷路のまま**ボールを戻す(ステージは進めない)
 - `StartStage()`(ステージ開始時、内部から呼ばれる)で`uiManager.ShowStageAnnouncement(currentStage)`を呼ぶ
 - Consoleログに加えて、画面上の一時的なテキスト表示(`UIManager.cs`)も行う
