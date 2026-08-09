@@ -64,6 +64,17 @@
 
 - `Update()`でボールのY座標を監視し、`fallThreshold`(既定 `-15`。落下の「間」を持たせるため意図的に深めに設定)を下回ったら`gameManager`(Inspectorでアサイン)の`OnBallFell()`を呼ぶ
 
+### `OnigiriMeshBuilder.cs`
+ボールにアタッチする。ボールを「おむすび」(三角柱)の見た目・当たり判定にする(Issue #31)。
+
+- Unityに三角柱の標準プリミティブは無いため、`MazeGenerator`の壁と同様に**実行時にコードでメッシュを組み立てる**。`Awake()`で生成し、`MeshFilter`と`MeshCollider`の両方に同じメッシュを設定する
+- **`MeshCollider.convex`は`true`にする必要がある**(非kinematicな`Rigidbody`と組み合わせるMeshColliderの制約)。三角柱は凸形状なので問題なく設定できる
+- Y軸方向に押し出した三角柱(上から見ると正三角形)にしている。水平方向の力に対してどの向きからも対称に反応させるため。押し出し軸を寝かせると進行方向によって転がり方が変わってしまう
+- 面ごとに頂点を分離してフラットシェーディングにしている(18頂点 / 8三角形)。頂点の巻き順は、Unity組み込みQuadメッシュの値から検算した規則「`Vector3.Cross(b - a, c - a)`が表向きの法線になる」に従っている
+- `radius`(既定 `0.6`)と`thickness`(既定 `0.8`)は`[SerializeField]`で調整可能。**`thickness`を薄くすると底面が安定しすぎて一切転ばず、床を滑るだけの動きになる**(半径0.6に対し厚み0.5では転倒0回、0.8では転倒するのを実測で確認済み)
+- 三角柱は球より接地面の摩擦が大きく、球体時代の`BallController.moveForce = 10`のままではほとんど動き出せない。そのため`moveForce`は`17`に引き上げてある(球体+力10と同程度の機動力になる値を実測で求めた)
+- **Editor上の非再生時のシーンビューでは、このメッシュはまだ生成されていない**(`MazeGenerator`の迷路と同じ制約)
+
 ### `UIManager.cs`
 シーン内の空のGameObjectにアタッチする。画面上に一時的なテキストを表示する。
 
@@ -81,7 +92,7 @@
 
 | GameObject | 主なコンポーネント | 役割 |
 |---|---|---|
-| `Ball` | `Sphere`メッシュ, `Rigidbody`, タグ`Player`, `BallController`, `FallDetector` | プレイヤーが操作するボール |
+| `Ball` | 三角柱メッシュ(`OnigiriMeshBuilder`が実行時に生成), `MeshCollider`(convex), `Rigidbody`, タグ`Player`, `BallController`, `FallDetector`, `OnigiriMeshBuilder` | プレイヤーが操作するおむすび |
 | `Goal` | `Cube`メッシュ, `Collider`(`Is Trigger`), `GoalTrigger` | ゴール判定 |
 | `Floor` | `Cube`メッシュを平たく潰したもの, `Collider` | 床。`MazeGenerator`がサイズを迷路に合わせて変更する |
 | `MazeGenerator`(空) | `MazeGenerator` | 迷路生成の起点。`wallMaterial`/`floor`/`ball`/`goal`をInspectorで参照 |
@@ -121,7 +132,7 @@ CI上で要求ファイルを生成する方式(`game-ci/unity-request-activatio
 
 自動テストは用意していない。変更後は以下を手動で確認する。
 
-1. Unity EditorでPlayモードに入り、WASD(またはタップ&ドラッグ)でボールが加速・減速しながら転がること
+1. Unity EditorでPlayモードに入り、WASD(またはタップ&ドラッグ)でおむすびが加速・減速しながら、角を軸にゴロゴロと転がること(滑るだけで転ばない場合は`OnigiriMeshBuilder`の`thickness`が薄すぎる。ほとんど動き出せない場合は`BallController`の`moveForce`が足りない)
 2. カメラがボールを追従し、カクつきや振動がないこと
 3. 迷路の壁(内部・外周とも想定通り)が表示され、マゼンタ(シェーダーエラー)になっていないこと
 4. ボールをゴールに入れ、Consoleに`Stage X Clear! Time: Y.YYs`が出力され、一回り大きい新しい迷路が生成されること

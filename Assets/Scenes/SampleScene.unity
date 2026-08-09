@@ -493,10 +493,11 @@ GameObject:
   - component: {fileID: 222200002}
   - component: {fileID: 222200003}
   - component: {fileID: 222200004}
-  - component: {fileID: 222200005}
   - component: {fileID: 222200006}
   - component: {fileID: 222200007}
   - component: {fileID: 222200008}
+  - component: {fileID: 222200010}
+  - component: {fileID: 222200009}
   m_Layer: 0
   m_Name: Ball
   m_TagString: Player
@@ -576,27 +577,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!135 &222200005
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 222200001}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!54 &222200006
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -636,7 +616,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0a3df452c926451d81c23eec8dfde398, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveForce: 10
+  moveForce: 17
   dragRadius: 100
 --- !u!114 &222200008
 MonoBehaviour:
@@ -652,6 +632,42 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gameManager: {fileID: 555500003}
   fallThreshold: -15
+--- !u!114 &222200009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 222200001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1043a524833b4b4bbfad92abcdcf085, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::OnigiriMeshBuilder
+  radius: 0.6
+  thickness: 0.8
+--- !u!64 &222200010
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 222200001}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
